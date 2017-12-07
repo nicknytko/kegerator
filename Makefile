@@ -1,7 +1,7 @@
 CC=gcc
-CFLAGS=
+CFLAGS=-std=c11
 LD=gcc
-LDFLAGS=-lpigpio -lrt
+LDFLAGS=-lpigpio -lrt -lpthread
 
 SOURCES=$(wildcard *.c)
 OBJECTS=$(SOURCES:.c=.o)

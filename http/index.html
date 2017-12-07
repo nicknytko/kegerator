@@ -19,6 +19,12 @@
              margin: auto;
              padding-top: 100px;
          }
+         button
+         {
+             position: absolute;
+             bottom: 5px;
+             margin-left:-40px;
+         }
         </style>
         <script>        
          const pint_glass_ml = 473;
@@ -36,8 +42,7 @@
          var canvas_width = 0;
          var canvas_height = 0;
 
-         var current_volume = 0;
-         var target_volume = 0;
+         var websocket = null;
          
          function update_labels( pulses )
          {
@@ -57,9 +62,9 @@
                  }
              
              var beer_top_width = glass_bottom_width +
-                 ( ( volume / pint_glass_ml ) * ( glass_top_width - glass_bottom_width ) );
+                   ( ( volume / pint_glass_ml ) * ( glass_top_width - glass_bottom_width ) );
              var area = ( volume / pint_glass_ml ) *
-                 ( ( glass_bottom_width + glass_top_width ) * glass_height / 2 );
+             ( ( glass_bottom_width + glass_top_width ) * glass_height / 2 );
              var beer_height = ( 2 * area ) / ( glass_bottom_width + beer_top_width );
 
              context.fillStyle = glass_color;
@@ -95,8 +100,18 @@
              context = canvas.getContext( "2d" );
              canvas_width = canvas.width;
              canvas_height = canvas.height;
-         
+             
              update_labels( 0 );
+
+             websocket = new WebSocket( "ws://" + location.host + "/ws" );
+             websocket.onmessage = function( event )
+             {
+                 var match = event.data.match( /^pulses: (.+)/ );
+                 if ( match != null )
+                 {
+                     update_labels( parseInt( match[1] ) );
+                 }
+             };
          }
         </script>
     </head>
@@ -105,8 +120,7 @@
             <span id="pulses">0</span> pulses &asymp;
             <span id="milliliters">0</span> mL
         </div>
-        <canvas id="glass" width="400" height="400">
-            
-        </canvas>
+        <canvas id="glass" width="400" height="400"></canvas>
+        <center><button type="button" onclick="websocket.send('zero');">Reset To 0</button></center>
     </body>
 </html>

@@ -28,7 +28,7 @@
         </style>
         <script>        
          const pint_glass_ml = 473;
-         const ml_per_pulse = 0.638359;
+         const ml_per_pulse = 0.620921;
          
          const glass_bottom_width = 160;
          const glass_top_width = 220;
@@ -61,11 +61,12 @@
                      volume = pint_glass_ml;
                  }
              
-             var beer_top_width = glass_bottom_width +
-                   ( ( volume / pint_glass_ml ) * ( glass_top_width - glass_bottom_width ) );
              var area = ( volume / pint_glass_ml ) *
              ( ( glass_bottom_width + glass_top_width ) * glass_height / 2 );
-             var beer_height = ( 2 * area ) / ( glass_bottom_width + beer_top_width );
+             var delta_b = glass_top_width - glass_bottom_width;
+             var quad_root = Math.sqrt( glass_height * ( glass_height * Math.pow( glass_bottom_width, 2 ) + 2 * area * delta_b ) );
+             var beer_height = ( quad_root - glass_height * glass_bottom_width ) / delta_b;
+             var beer_top_width = glass_bottom_width + ( beer_height * delta_b / glass_height );
 
              context.fillStyle = glass_color;
              context.strokeStyle = glass_outline_color;

@@ -112,6 +112,7 @@
              websocket = new WebSocket( "ws://" + location.host + "/ws" );
              websocket.onmessage = function( event )
              {
+                 //console.log( event );
                  var match_pulse = event.data.match( /^pulses: (.+)/ );
                  if ( match_pulse != null )
                  {

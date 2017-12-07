@@ -79,21 +79,18 @@ int main( )
     while ( 1 )
     {
         mg_mgr_poll( &manager, 200 );
-        double instFlowRate = flowSensorGetRate( );
+        double instFlowRate = flowSensorGetFrequency( );
         avgFlowRate += ( instFlowRate - avgFlowRate )
             / FLOW_RATE_AVG_AMT;
 
         if ( ( clock( ) - lastBroadcast ) > BROADCAST_DELAY )
         {
-            unsigned int pulses = flowSensorGetFrequency( );
+            unsigned int pulses = flowSensorGetPulses( );
             
             snprintf( broadcastData, 64, "pulses: %i", pulses );
-            broadcastString.len = strlen( broadcastData );
-            broadcast( connection, broadcastString );
-
-            snprintf( broadcastData, 64, "flow: %d", avgFlowRate );
-            broadcastString.len = strlen( broadcastData );
-            broadcast( connection, broadcastString );
+            broadcast( connection, broadcastData, strlen( broadcastData ) );
+            snprintf( broadcastData, 64, "flow: %f", avgFlowRate );
+            broadcast( connection, broadcastData, strlen( broadcastData ) );
             
             lastBroadcast = clock( );
         }

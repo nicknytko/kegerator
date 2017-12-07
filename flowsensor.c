@@ -14,8 +14,9 @@ static uint32_t lastTick = 0;
 #define FLOW_SENSOR_PIN 27
 #define UINT32_HALF 0x7FFFFFFF
 #define TIMER_RESET_FLOW_PERIOD 0
-#define DELAY_RESET_FLOW_PERIOD_MS 100
+#define DELAY_RESET_FLOW_PERIOD_MS 50
 #define FREQUENCY_CONSTANT 73
+#define US_TO_SECONDS 1000000
 
 static void gpioResetFlowPeriod( )
 {
@@ -102,7 +103,8 @@ double flowSensorGetFrequency( )
     }
     else
     {
-        return 1.0 / (double) retPeriod;
+        double freq = 1.0 / ( (double) retPeriod / US_TO_SECONDS );
+        return freq;
     }
 }
 
@@ -154,7 +156,7 @@ int flowSensorInit( )
     return 0;
 }
 
-int flowSensorQuit( )
+void flowSensorQuit( )
 {
     if ( pulseMutex != NULL )
     {

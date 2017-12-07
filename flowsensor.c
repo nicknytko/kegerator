@@ -7,28 +7,73 @@
 
 static unsigned int pulses = 0;
 static unsigned int localPulses = 0;
-static pthread_mutex_t* pulseMutex;
+static pthread_mutex_t* pulseMutex = NULL;
+static uint32_t period = 0;
+static uint32_t lastTick = 0;
 
-int gpioChangeState( int gpio, int level, uint32_t tick )
+#define FLOW_SENSOR_PIN 27
+#define UINT32_HALF 0x7FFFFFFF
+#define TIMER_RESET_FLOW_PERIOD 0
+#define DELAY_RESET_FLOW_PERIOD_MS 100
+#define FREQUENCY_CONSTANT 73
+
+static void gpioResetFlowPeriod( )
+{
+    pthread_mutex_lock( pulseMutex );
+    period = 0;
+    pthread_mutex_unlock( pulseMutex );
+
+    gpioSetTimerFunc( TIMER_RESET_FLOW_PERIOD,
+                      DELAY_RESET_FLOW_PERIOD_MS,
+                      NULL );
+}
+
+
+static int gpioChangeState( int gpio, int level, uint32_t tick )
 {
     if ( gpio == FLOW_SENSOR_PIN && level == 1 )
     {
         if ( pthread_mutex_trylock( pulseMutex ) == 0 )
         {
+            /* Add to the pulses counter, and add any local
+               pulses that may have occured */
+            
             pulses++;
-
             if ( localPulses != 0 )
             {
                 pulses += localPulses;
                 localPulses = 0;
             }
+
+            /* Save the pulse period, to determine the frequency.
+               Check for unsigned integer roll over */  
+
+            if ( lastTick > 0x7FFFFFFF && tick < 0x7FFFFFFF )
+            {
+                period = tick + ( 0xFFFFFFFF - lastTick );
+            }
+            else
+            {
+                period = tick - lastTick;
+            }
+
+            /* Set up a timer to reset the period after a while */
+            
+            gpioSetTimerFunc( TIMER_RESET_FLOW_PERIOD,
+                              DELAY_RESET_FLOW_PERIOD_MS,
+                              gpioResetFlowPeriod );
             
             pthread_mutex_unlock( pulseMutex );
         }
         else
         {
+            /* Couldn't obtain the lock, save the pulse to
+               the local pulses counter */
+            
             localPulses++;
         }
+        
+        lastTick = tick;
     }
 }
 
@@ -42,6 +87,30 @@ unsigned int flowSensorGetPulses( )
 
     return retPulses;
 }
+
+double flowSensorGetFrequency( )
+{
+    uint32_t retPeriod = 0;
+
+    pthread_mutex_lock( pulseMutex );
+    retPeriod = period;
+    pthread_mutex_unlock( pulseMutex );
+
+    if ( retPeriod == 0 )
+    {
+        return 0;
+    }
+    else
+    {
+        return 1.0 / (double) retPeriod;
+    }
+}
+
+double flowSensorGetRate( )
+{
+    return flowSensorGetFrequency( ) / FREQUENCY_CONSTANT;
+}
+
 
 void flowSensorResetPulses( )
 {
@@ -57,20 +126,18 @@ int flowSensorInit( )
         printf( "Failed to initialise GPIO library\n" );
         return 1;
     }
-
     if ( gpioSetMode( FLOW_SENSOR_PIN, PI_INPUT ) != 0 )
     {
         printf( "Failed to set pin to input mode\n" );
         return 2;
     }
-
     if ( gpioSetPullUpDown( FLOW_SENSOR_PIN, PI_PUD_UP ) != 0 )
     {
-        printf( "Failed to set pull down mode\n" );
+        printf( "Failed to set pull up mode\n" );
         return 3;
     }
-
-    if ( gpioSetAlertFunc( FLOW_SENSOR_PIN, (gpioAlertFunc_t) gpioChangeState ) != 0 )
+    if ( gpioSetAlertFunc( FLOW_SENSOR_PIN,
+                           (gpioAlertFunc_t) gpioChangeState ) != 0 )
     {
         printf( "Failed to set state change callback\n" );
         return 4;
@@ -85,4 +152,17 @@ int flowSensorInit( )
     }
 
     return 0;
+}
+
+int flowSensorQuit( )
+{
+    if ( pulseMutex != NULL )
+    {
+        free( pulseMutex );
+    }
+
+    gpioSetAlertFunc( FLOW_SENSOR_PIN, NULL );
+    gpioSetTimerFunc( TIMER_RESET_FLOW_PERIOD,
+                      DELAY_RESET_FLOW_PERIOD_MS,
+                      NULL );
 }

@@ -1,3 +1,5 @@
+#ifdef TARGET_RPI
+
 #include <pigpio.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -168,3 +170,5 @@ void flowSensorQuit( )
                       DELAY_RESET_FLOW_PERIOD_MS,
                       NULL );
 }
+
+#endif

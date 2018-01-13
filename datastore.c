@@ -5,25 +5,11 @@
 
 #define DATA_STORE_PATH "brew.db"
 
-static struct list_t listHead;
+static struct brewdata_t* brewData = NULL;
 static uint8_t numBrews = 0;
-
-static void deleteListRecursively( struct list_t* node )
-{
-    if ( node != NULL )
-    {
-        free( node->data->name );
-        free( node->data );
-        deleteListRecursively( node->next );
-        free( node );
-    }
-}
 
 int dataStoreInit( )
 {
-    listHead.data = NULL;
-    listHead.next = NULL;
-
     dataStoreLoad( );
     return 0;
 }
@@ -31,7 +17,11 @@ int dataStoreInit( )
 void dataStoreQuit( )
 {
     dataStoreSave( );
-    deleteListRecursively( listHead.next );
+    for ( uint8_t i = 0; i < numBrews; i++ )
+    {
+        free( brewData[i].name );
+    }
+    free( brewData );
 }
 
 void dataStoreSave( )
@@ -39,17 +29,15 @@ void dataStoreSave( )
     FILE* brewdb = fopen( DATA_STORE_PATH, "wb" );    
     fwrite( &numBrews, sizeof( numBrews ), 1, brewdb );
 
-    struct list_t* node = listHead.next;    
     for ( uint32_t i = 0; i < numBrews; i++ )
     {
-        struct brewdata_t* data = node->data;
+        struct brewdata_t* data = brewData + i;
         uint32_t nameLength = strlen( data->name );
 
         fwrite( &nameLength, sizeof( uint32_t ), 1, brewdb );
         fwrite( data->name, sizeof( char ), nameLength, brewdb );
         fwrite( &( data->abv ), sizeof( uint32_t ), 1, brewdb );
         fwrite( &( data->mLRemaining ), sizeof( uint64_t ), 1, brewdb );
-        node = node->next;
     }
 
     fclose( brewdb );
@@ -64,10 +52,16 @@ void dataStoreLoad( )
     }
     
     fread( &numBrews, sizeof( numBrews ), 1, brewdb );
+    
+    if ( brewData != NULL )
+    {
+        free( brewData );
+    }
+    brewData = calloc( numBrews, sizeof( struct brewdata_t ) );
+    
     for ( uint32_t i = 0; i < numBrews; i++ )
     {
-        struct brewdata_t* data = (struct brewdata_t*)
-            malloc( sizeof( struct brewdata_t ) );
+        struct brewdata_t* data = brewData + i;
         uint32_t nameLength;
         
         fread( &nameLength, sizeof( uint32_t ), 1, brewdb );
@@ -77,8 +71,6 @@ void dataStoreLoad( )
 
         fread( &( data->abv ), sizeof( uint32_t ), 1, brewdb );
         fread( &( data->mLRemaining ), sizeof( uint64_t ), 1, brewdb );
-
-        dataStoreInsertElement( data );
     }
 
     fclose( brewdb );
@@ -86,13 +78,25 @@ void dataStoreLoad( )
 
 void dataStoreInsertElement( struct brewdata_t* data )
 {
-    struct list_t* node = (struct list_t*) malloc( sizeof( struct list_t ) );
-    node->data = data;
-    node->next = listHead.next;
-    listHead.next = node;
+    struct brewdata_t* oldData = brewData;
+    brewData = calloc( numBrews + 1, sizeof( struct brewdata_t ) );
+    memcpy( brewData, oldData, numBrews * sizeof( struct brewdata_t ) );
+    memcpy( brewData + numBrews, data, sizeof( struct brewdata_t ) );
+
+    struct brewdata_t* inserted = brewData + numBrews;
+    inserted->name = calloc( strlen( data->name ) + 1, sizeof( char ) );
+    strcpy( inserted->name, data->name );
+    
+    free( oldData );
+    numBrews++;
 }
 
-struct list_t* dataStoreGetBrews( )
+struct brewdata_t* dataStoreGetBrews( )
 {
-    return listHead.next;
+    return brewData;
+}
+
+uint32_t dataStoreGetNumBrews( )
+{
+    return numBrews;
 }

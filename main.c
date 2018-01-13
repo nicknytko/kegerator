@@ -5,7 +5,11 @@
 #include "datastore.h"
 #include "mongoose.h"
 
-static const char* httpPort = "80";
+#define HTTP_PORT 80
+#define HTTP_JSON_HEADER "HTTP/1.1 200 OK\r\nTransfer-Encoding: "       \
+    "chunked\r\nContent-Type: application/json\r\n\r\n"
+#define BROADCAST_DELAY 25 // milliseconds
+
 static struct mg_serve_http_opts httpServerOptions;
 static int serverRunning = true;
 
@@ -25,14 +29,14 @@ void broadcast( struct mg_connection* sender, const char* buffer, unsigned int b
 
 void handleRestApi( struct mg_connection* connection, struct http_message* http )
 {
-    mg_printf( connection, "HTTP/1.1 200 OK\r\nTransfer-Encoding:"
-               " chunked\r\nContent-Type: application/json\r\n\r\n" );
+    mg_printf( connection, HTTP_JSON_HEADER );
     mg_printf_http_chunk( connection, "{\n" );
-    struct list_t* brews = dataStoreGetBrews( );
+    struct brewdata_t* brews = dataStoreGetBrews( );
     uint8_t first = true;
-    while ( brews != NULL )
+    
+    for ( uint32_t i = 0; i < dataStoreGetNumBrews( ); i++ )
     {
-        struct brewdata_t* data = brews->data;
+        struct brewdata_t* data = brews + i;
         if ( !first )
         {
             mg_printf_http_chunk( connection, ",\n" );
@@ -42,7 +46,6 @@ void handleRestApi( struct mg_connection* connection, struct http_message* http 
         mg_printf_http_chunk( connection, "\"%s\" : {\n", data->name );
         mg_printf_http_chunk( connection, "\"abv\": %u.%u,\n", data->abv / 10, data->abv % 10 );
         mg_printf_http_chunk( connection, "\"remaining_ml\": %u \n}", data->mLRemaining );
-        brews = brews->next;
     }
     mg_printf_http_chunk( connection, "}" );
     mg_send_http_chunk( connection, "", 0 );
@@ -88,8 +91,8 @@ int main( )
 {
     /* Fork self, detach and run program as a daemon */
     
-    pid_t process_id = fork( );
-    if ( process_id > 0 )
+    pid_t pid = fork( );
+    if ( pid > 0 )
     {
         printf( "Starting kegerator daemon ...\n" );
         exit( 0 );
@@ -114,9 +117,12 @@ int main( )
     httpServerOptions.document_root = "http";
     httpServerOptions.enable_directory_listing = "false";
 
-    const long BROADCAST_DELAY = 25;
-    char broadcastData[64];
+    /* Websocket broadcast delay */
+    
     long lastBroadcast = clock( ) - BROADCAST_DELAY;
+
+    /* For calculating flow rate */
+    
     const int FLOW_RATE_AVG_AMT = 50;
     double avgFlowRate = 0;
     
@@ -130,6 +136,7 @@ int main( )
         if ( ( clock( ) - lastBroadcast ) > BROADCAST_DELAY )
         {
             unsigned int pulses = flowSensorGetPulses( );
+            char broadcastData[64];
             
             snprintf( broadcastData, 64, "pulses: %i", pulses );
             broadcast( connection, broadcastData, strlen( broadcastData ) );

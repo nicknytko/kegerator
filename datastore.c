@@ -91,6 +91,16 @@ void dataStoreInsertElement( struct brewdata_t* data )
     numBrews++;
 }
 
+void dataStoreInsert( const char* name, uint32_t abv, uint64_t mLRemaining )
+{
+    struct brewdata_t data;
+    data.name = (char*) name;
+    data.abv = abv;
+    data.mLRemaining = mLRemaining;
+
+    dataStoreInsertElement( &data );
+}
+
 struct brewdata_t* dataStoreGetBrews( )
 {
     return brewData;

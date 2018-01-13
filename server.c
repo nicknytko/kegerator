@@ -1,9 +1,13 @@
 #include <stdio.h>
 #include <time.h>
 
+#include <sys/types.h>
+#include <sys/socket.h>
+
 #include "mongoose.h"
 #include "flowsensor.h"
 #include "datastore.h"
+#include "daemon_ipc.h"
 
 #define HTTP_PORT "80"
 #define HTTP_JSON_HEADER "HTTP/1.1 200 OK\r\nTransfer-Encoding: "       \
@@ -87,12 +91,59 @@ static void eventHandler( struct mg_connection* connection, int event,
     }
 }
 
+static void handleDaemonRequest( int client )
+{
+    enum daemon_ipc_type ipcType;
+    read( client, &ipcType, sizeof( enum daemon_ipc_type ) );
+
+    switch ( ipcType )
+    {
+    case DAEMON_QUIT:
+    {
+        serverRunning = false;
+    }
+    break;
+    case DAEMON_ADD_BREW:
+    {
+        struct daemon_ipc_brew_data_t data;
+        read( client, &data, sizeof( struct daemon_ipc_brew_data_t ) );
+        dataStoreInsert( data.brewName, data.abv, data.mLRemaining );
+    }
+    break;
+    case DAEMON_LIST_BREWS:
+    {
+        struct daemon_ipc_brew_data_t* brews;
+        uint32_t brewCount = dataStoreGetNumBrews( );
+        struct brewdata_t* brewData = dataStoreGetBrews( );
+        brews = calloc( brewCount,
+                            sizeof( struct daemon_ipc_brew_data_t ) );
+
+        for ( uint32_t i = 0; i < brewCount; i++ )
+        {
+            strncpy( brews[i].brewName, brewData[i].name, 128 );
+            brews[i].abv = brewData[i].abv;
+            brews[i].mLRemaining = brewData[i].mLRemaining;
+        }
+        write( client, &brewCount, sizeof( uint32_t ) );
+        write( client, brews, sizeof( struct daemon_ipc_brew_data_t ) *
+               brewCount);
+                
+        free( brews );
+    }
+    break;
+    default:
+    case DAEMON_NONE:
+    case DAEMON_UNKNOWN_TYPE:
+        break;
+    }
+}
+
 void serverQuit( )
 {
     serverRunning = false;
 }
 
-void serverMain( )
+void serverMain( int socket )
 {
     /* Initialise mongoose server junk */
     
@@ -131,6 +182,13 @@ void serverMain( )
             broadcast( connection, broadcastData, strlen( broadcastData ) );
             
             lastBroadcast = clock( );
+        }
+
+        int client = accept( socket, NULL, NULL );
+        if ( client >= 0 )
+        {
+            handleDaemonRequest( client );
+            close( client );
         }
     }
     mg_mgr_free( &manager );

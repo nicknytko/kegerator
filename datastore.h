@@ -32,9 +32,14 @@ void dataStoreSave( );
 void dataStoreLoad( );
 
 /**
- * Add a new brew element into the data array
+ * Add a new brew element into the data array, full structure.
  */
 void dataStoreInsertElement( struct brewdata_t* data );
+
+/**
+ * Add a new brew element into the data array, individual arguments.
+ */
+void dataStoreInsert( const char* name, uint32_t abv, uint64_t mLRemaining );
 
 /**
  * Get an array of all the stored brews

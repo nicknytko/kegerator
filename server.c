@@ -69,6 +69,14 @@ static void eventHandler( struct mg_connection* connection, int event,
         struct websocket_message* wm = (struct websocket_message*) eventData;
         if ( strncmp( (const char*) wm->data, "zero", wm->size ) == 0 )
         {
+            // TODO: make this better
+#define TAP_BREW_NUMBER 0
+#define ML_PER_PULSE 0.620921f
+            unsigned int pulses = flowSensorGetPulses( );
+            unsigned int ml = (unsigned int)( (float) pulses * ML_PER_PULSE );
+            struct brewdata_t* brews = dataStoreGetBrews( );
+            brews[TAP_BREW_NUMBER].mLRemaining -= ml;
+            
             flowSensorResetPulses( );
         }
         break;
@@ -76,6 +84,9 @@ static void eventHandler( struct mg_connection* connection, int event,
     case MG_EV_HTTP_REQUEST:
     {
         struct http_message* http = (struct http_message*) eventData;
+        #ifdef DEBUG_PRINT
+        printf( "Received request for: %.*s\n", http->uri.len, http->uri.p );
+        #endif
         if ( mg_vcmp( &( http->uri ), "/api/" ) == 0 )
         {
             handleRestApi( connection, http );
@@ -129,6 +140,23 @@ static void handleDaemonRequest( int client )
                brewCount);
                 
         free( brews );
+    }
+    break;
+    case DAEMON_RENAME_BREW:
+    {
+        struct daemon_ipc_brew_rename_t* rename = (struct daemon_ipc_brew_rename_t*)
+            malloc( sizeof( struct daemon_ipc_brew_rename_t ) );
+        read( client, rename, sizeof( struct daemon_ipc_brew_rename_t ) );
+
+        if ( rename->index < dataStoreGetNumBrews( ) )
+        {
+            struct brewdata_t* brews = dataStoreGetBrews( );
+            free( brews[rename->index].name );
+            char* newNameStr = (char*) malloc( strlen( rename->newName ) + 1 );
+            strcpy( newNameStr, rename->newName );
+            brews[rename->index].name = newNameStr;
+        }
+        free( rename );
     }
     break;
     default:

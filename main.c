@@ -7,6 +7,7 @@
 #include <sys/un.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #include "server.h"
 #include "flowsensor.h"
@@ -27,6 +28,7 @@ void printUsage( const char* exec )
     printf( "\t%s --stop\n", exec );
     printf( "\t%s --addbrew [name] [abv] [mL left]\n", exec );
     printf( "\t%s --listbrews\n", exec );
+    printf( "\t%s --renamebrew [id] [newname]\n", exec );
 }
 
 void client( int argc, char** argv, int socketFile, struct sockaddr_un* sock )
@@ -67,6 +69,18 @@ void client( int argc, char** argv, int socketFile, struct sockaddr_un* sock )
             write( socketFile, &newBrew, sizeof( struct daemon_ipc_brew_data_t ) );
             return;
         }
+        if ( strcmp( argv[1], "--renamebrew" ) == 0 &&
+             argc == 4 )
+        {
+            struct daemon_ipc_brew_rename_t newName;
+            sscanf( argv[2], "%u", &newName.index );
+            strncpy( newName.newName, argv[3], 128 );
+
+            ipcType = DAEMON_RENAME_BREW;
+            write( socketFile, &ipcType, sizeof( enum daemon_ipc_type ) );
+            write( socketFile, &newName, sizeof( struct daemon_ipc_brew_rename_t ) );
+            return;
+        }
         if ( strcmp( argv[1], "--listbrews" ) == 0 &&
              argc == 2 )
         {
@@ -82,7 +96,7 @@ void client( int argc, char** argv, int socketFile, struct sockaddr_un* sock )
             
             for ( uint32_t i = 0; i < numBrews; i++ )
             {
-                printf( "%-32.32s\t%u.%u%%\t%llu mL\n", brewData[i].brewName,
+                printf( "%i\t%-32.32s\t%u.%u%%\t%llu mL\n", i, brewData[i].brewName,
                         brewData[i].abv / 10, brewData[i].abv % 10,
                         brewData[i].mLRemaining );
             }

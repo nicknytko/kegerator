@@ -4,32 +4,25 @@
 
 static unsigned int pulses = 0;
 
-int flowSensorInit( )
-{
+int flowSensorInit() {
     return 0;
 }
 
-void flowSensorQuit( )
-{
-}
+void flowSensorQuit() {}
 
-unsigned int flowSensorGetPulses( )
-{
+unsigned int flowSensorGetPulses() {
     return pulses;
 }
 
-double flowSensorGetFrequency( )
-{
+double flowSensorGetFrequency() {
     return 0;
 }
 
-double flowSensorGetRate( )
-{
+double flowSensorGetRate() {
     return 0;
 }
 
-void flowSensorResetPulses( )
-{
+void flowSensorResetPulses() {
     pulses = 0;
 }
 

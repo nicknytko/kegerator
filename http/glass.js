@@ -6,8 +6,10 @@ const glass_top_width = 220;
 const glass_height = 380;
 const glass_color = "#ccccccff";
 const glass_outline_color = "#aaaaaaee";
-const beer_bottom_color = "#e59f49ff";
-const beer_top_color = "#f94b16ff";
+//const beer_bottom_color = "#e59f49ff";
+//const beer_top_color = "#f94b16ff";
+const beer_bottom_color = "#cc6699ff";
+const beer_top_color = "#bf4080ff"
 
 var context = null;
 var canvas_width = 0;

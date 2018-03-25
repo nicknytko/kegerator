@@ -92,7 +92,7 @@ static int requestTestHeader(int client) {
     char header[sizeof(IPC_CALL_HEADER)];
     ssize_t bytes = read(client, header, sizeof(IPC_CALL_HEADER));
 
-    return strncmp(header, IPC_CALL_HEADER, sizeof(IPC_CALL_HEADER)) == 0
+    return strncmp(header, IPC_CALL_HEADER, sizeof(IPC_CALL_HEADER)) == 0;
 }
 
 static void handleDaemonRequest(int client) {

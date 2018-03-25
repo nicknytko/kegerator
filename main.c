@@ -40,10 +40,9 @@ void client(int argc, char **argv, int socketFile, struct sockaddr_un *sock) {
     }
 
     if (argc > 1) {
-        write(socketFile, IPC_CALL_HEADER, sizeof(IPC_CALL_HEADER));
-
         if (strcmp(argv[1], "--stop") == 0) {
             ipcType = DAEMON_QUIT;
+	    write(socketFile, IPC_CALL_HEADER, sizeof(IPC_CALL_HEADER));
             write(socketFile, &ipcType, sizeof(enum daemon_ipc_type));
             return;
         }
@@ -60,6 +59,7 @@ void client(int argc, char **argv, int socketFile, struct sockaddr_un *sock) {
             newBrew.abv = abvWhole * 10 + abvDec;
 
             ipcType = DAEMON_ADD_BREW;
+	    write(socketFile, IPC_CALL_HEADER, sizeof(IPC_CALL_HEADER));
             write(socketFile, &ipcType, sizeof(enum daemon_ipc_type));
             write(socketFile, &newBrew, sizeof(struct daemon_ipc_brew_data_t));
             return;
@@ -70,6 +70,7 @@ void client(int argc, char **argv, int socketFile, struct sockaddr_un *sock) {
             strncpy(newName.newName, argv[3], 128);
 
             ipcType = DAEMON_RENAME_BREW;
+	    write(socketFile, IPC_CALL_HEADER, sizeof(IPC_CALL_HEADER));
             write(socketFile, &ipcType, sizeof(enum daemon_ipc_type));
             write(socketFile, &newName, sizeof(struct daemon_ipc_brew_rename_t));
             return;
@@ -79,6 +80,7 @@ void client(int argc, char **argv, int socketFile, struct sockaddr_un *sock) {
             struct daemon_ipc_brew_data_t *brewData;
 
             ipcType = DAEMON_LIST_BREWS;
+	    write(socketFile, IPC_CALL_HEADER, sizeof(IPC_CALL_HEADER));
             write(socketFile, &ipcType, sizeof(enum daemon_ipc_type));
 
             read(socketFile, &numBrews, sizeof(uint32_t));
@@ -98,6 +100,7 @@ void client(int argc, char **argv, int socketFile, struct sockaddr_un *sock) {
         if (strcmp(argv[1], "--removebrew") == 0 && argc == 3) {
             uint32_t index = atoi(argv[2]);
             ipcType = DAEMON_REMOVE_BREW;
+	    write(socketFile, IPC_CALL_HEADER, sizeof(IPC_CALL_HEADER));
             write(socketFile, &ipcType, sizeof(enum daemon_ipc_type));
             write(socketFile, &index, sizeof(uint32_t));
             return;
